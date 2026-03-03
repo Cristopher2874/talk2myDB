@@ -9,4 +9,5 @@ dependencies = [
     "langchain-oci>=0.2.4",
     "oracledb>=3.4.2",
     "python-dotenv>=1.2.2",
+    "uvicorn>=0.24.0",
 ]

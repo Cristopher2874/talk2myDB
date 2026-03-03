@@ -1,11 +1,10 @@
 import os 
-import array
 import oracledb
 from contextlib import contextmanager
 from dotenv import load_dotenv
 load_dotenv()
 
-class RAGDBConnection:
+class DBConnection:
     """Singleton for database connection pool and operations."""
     _instance = None
     _initialized = False
@@ -17,9 +16,9 @@ class RAGDBConnection:
         return cls._instance
     
     def __init__(self):
-        if RAGDBConnection._initialized:
+        if DBConnection._initialized:
             return
-        RAGDBConnection._initialized = True
+        DBConnection._initialized = True
         
         self._config_dir = os.getenv("DB_WALLET_PATH")
         self._user = os.getenv("DB_USER")
@@ -31,8 +30,8 @@ class RAGDBConnection:
     
     def _get_pool(self) -> oracledb.ConnectionPool:
         """Get or create the connection pool (lazy initialization)."""
-        if RAGDBConnection._pool is None:
-            RAGDBConnection._pool = oracledb.create_pool(
+        if DBConnection._pool is None:
+            DBConnection._pool = oracledb.create_pool(
                 user=self._user,
                 password=self._password,
                 dsn=self._dsn,
@@ -43,7 +42,7 @@ class RAGDBConnection:
                 max=5,
                 increment=1,
             )
-        return RAGDBConnection._pool
+        return DBConnection._pool
     
     @contextmanager
     def get_connection(self):
@@ -81,8 +80,9 @@ class RAGDBConnection:
         self.db_connection = self.connect_db()
         self.cursor = self.db_connection.cursor()
 
+# TODO: check if all PGQL is supported
     def execute_query(self, conn: oracledb.Connection, sql: str):
-        """Execute SQL query and return column names and rows."""
+        """Execute SQL or PGQL query and return column names and rows."""
         with conn.cursor() as cur:
             cur.execute(sql)
             return [d[0] for d in cur.description], cur.fetchall()

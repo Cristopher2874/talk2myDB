@@ -1,0 +1,26 @@
+from abc import ABC
+from langchain.agents import create_agent
+
+from core.gen_ai_provider import GenAIProvider
+
+class BaseAgent(ABC):
+    """template for agents, may require rebuild"""
+
+    def __init__(self):
+        self.gen_ai_provider = GenAIProvider()
+        self._client = self.gen_ai_provider.build_oci_client(model_kwargs={"temperature": 0.1})
+        self.agent_name = "backend_orchestrator"
+        self.system_prompt = ''
+        self.tools = []
+        self.agent = self._build_agent()
+
+    def _build_agent(self):
+        """Build the agent"""
+        return create_agent(
+            model=self._client,
+            tools=self.tools,
+            system_prompt=self.system_prompt,
+            name=self.agent_name
+        )
+    
+    #TODO: add A2A in case is required

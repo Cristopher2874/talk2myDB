@@ -5,7 +5,6 @@ from langchain_oci import ChatOCIGenAI
 from dotenv import load_dotenv
 load_dotenv()
 
-
 class GenAIProvider:
     """Singleton provider for OCI GenAI LLM clients."""
     _instance = None
