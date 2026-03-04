@@ -1,6 +1,8 @@
 #temp
 bank
 wallet
+edge_wallet
+edge_spec
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
