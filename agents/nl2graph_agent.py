@@ -1,8 +1,12 @@
+import logging
+
 from langchain_core.messages import HumanMessage
 
 from database import DBConnection
 from core import BaseAgent
 from core import GRAPH_SCHEMA_DESCRIPTION, GRAPH_FEW_SHOT_EXAMPLES
+
+logger = logging.getLogger(__name__)
 
 class NL2GraphAgent(BaseAgent):
     """Agent for natural language to PGQL translation and execution."""
@@ -18,37 +22,50 @@ class NL2GraphAgent(BaseAgent):
     async def call_nl2graphDB_agent(self, input: dict) -> dict:
         """Process the input question by generating PGQL and executing it."""
         question = input.get("input", "")
+        original_question = question
         if not question:
             return {"output": "No question provided."}
 
-        try:
-            messages = [HumanMessage(content=question)]
+        max_attempts = 2
+        generated_pgql = ''
+        last_error = None
 
-            agent_input = {'messages': messages}
+        for attempt in range(max_attempts):
+            try:
+                messages = [HumanMessage(content=question)]
 
-            response = await self.agent.ainvoke(agent_input)
-            generated_pgql = response['messages'][-1].content
+                agent_input = {'messages': messages}
 
-            if generated_pgql.startswith("```"):
-                lines = generated_pgql.split("\n")
-                generated_pgql = "\n".join(lines[1:-1] if lines[-1] == "```" else lines[1:])
+                response = await self.agent.ainvoke(agent_input)
+                generated_pgql = response['messages'][-1].content
 
-            db_conn = DBConnection()
+                logger.info(f"GENERATED PGQL (attempt {attempt + 1}): {generated_pgql}")
 
-            with db_conn.get_connection() as conn:
-                cols, rows = db_conn.execute_query(conn, generated_pgql)
+                if generated_pgql.startswith("```"):
+                    lines = generated_pgql.split("\n")
+                    generated_pgql = "\n".join(lines[1:-1] if lines[-1] == "```" else lines[1:])
 
-            if not rows:
-                return {"output": "Query executed successfully but returned no results."}
+                db_conn = DBConnection()
 
-            result_lines = []
-            for row in rows:
-                row_data = ", ".join(f"{col}: {val}" for col, val in zip(cols, row))
-                result_lines.append(row_data)
+                with db_conn.get_connection() as conn:
+                    cols, rows = db_conn.execute_query(conn, generated_pgql)
 
-            return {"output": f"Graph Query Results:\n" + "\n".join(result_lines)}
-        except Exception as e:
-            return {"output": f"Error executing NL2Graph: {str(e)}"}
+                if not rows:
+                    return {"output": "Query executed successfully but returned no results."}
+
+                result_lines = []
+                for row in rows:
+                    row_data = ", ".join(f"{col}: {val}" for col, val in zip(cols, row))
+                    result_lines.append(row_data)
+
+                return {"output": f"Graph Query Results:\n" + "\n".join(result_lines)}
+            except Exception as e:
+                last_error = e
+                if attempt < max_attempts - 1:
+                    question = f"Original question: {original_question}\n\nYour previous query:\n{generated_pgql}\n\nhad a mistake that resulted in an error: {e}. Fix the mistakes and consider the examples provided to solve the user question."
+                    logger.warning(f"Retrying due to error: {e}")
+
+        return {"output": f"Error executing NL2Graph after {max_attempts} attempts: {str(last_error)}"}
 
 
 def create_nl2graph_agent():

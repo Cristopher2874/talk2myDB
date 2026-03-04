@@ -1,8 +1,12 @@
+import logging
+
 from langchain_core.messages import HumanMessage
 
 from database import DBConnection
 from core import BaseAgent
 from core import SQL_SCHEMA_DESCRIPTION, SQL_FEW_SHOT_EXAMPLES
+
+logger = logging.getLogger(__name__)
 
 class NL2SQLAgent(BaseAgent):
     """Agent for natural language to SQL translation and execution."""
@@ -13,18 +17,20 @@ class NL2SQLAgent(BaseAgent):
         self.system_prompt = f"{SQL_SCHEMA_DESCRIPTION}\n\n" + "\n\n".join(
             f"Q: {ex['q']}\nSQL:\n{ex['sql']}" for ex in SQL_FEW_SHOT_EXAMPLES
         )
-        self.agent = self._build_agent()
+        self.agent = self.build_agent()
 
     async def call_nl2sql_agent(self, input: dict) -> dict:
         """Process the input question by generating SQL and executing it."""
         question = input.get("input", "")
+        original_question = question
         if not question:
             return {"output": "No question provided."}
         
-        attempts= 0
+        max_attempts = 2
         generated_sql = ''
+        last_error = None
 
-        while(attempts <= 1):
+        for attempt in range(max_attempts):
             try:
                 messages = [HumanMessage(content=question)]
 
@@ -33,7 +39,7 @@ class NL2SQLAgent(BaseAgent):
                 response = await self.agent.ainvoke(agent_input)
                 generated_sql = response['messages'][-1].content
 
-                print(f"GENERATED SQL: {generated_sql}")
+                logger.info(f"GENERATED SQL (attempt {attempt + 1}): {generated_sql}")
 
                 if generated_sql.startswith("```"):
                     lines = generated_sql.split("\n")
@@ -54,12 +60,13 @@ class NL2SQLAgent(BaseAgent):
 
                 return {"output": f"Query Results:\n" + "\n".join(result_lines)}
             except Exception as e:
-                if(attempts <=1):
-                    question = f"Your previous query {generated_sql} had a mistake that resulted on an error: {e}. Fix the mistakes and consider the examples provided to solve the user question."
-                else:
-                    return {"output": f"Error executing NL2SQL: {str(e)}"}
-            finally:
-                attempts = attempts + 1
+                last_error = e
+                if attempt < max_attempts - 1:
+                    # Help model to remember query with error information
+                    question = f"Original question: {original_question}\n\nYour previous query:\n{generated_sql}\n\nhad a mistake that resulted in an error: {e}. Fix the mistakes and consider the examples provided to solve the user question."
+                    logger.warning(f"Retrying due to error: {e}")
+        
+        return {"output": f"Error executing NL2SQL after {max_attempts} attempts: {str(last_error)}"}
 
 
 def create_nl2sql_agent():

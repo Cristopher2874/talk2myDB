@@ -1,8 +1,11 @@
+import logging
 import os 
 import oracledb
 from contextlib import contextmanager
 from dotenv import load_dotenv
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 class DBConnection:
     """Singleton for database connection pool and operations."""
@@ -70,7 +73,7 @@ class DBConnection:
                 wallet_password=self._wallet_password,
             )
         except oracledb.Error as exc:
-            print(f"ERROR: DB connection failed: {exc}")
+            logger.error(f"DB connection failed: {exc}")
             raise exc
     
     def disconnect(self, connection: oracledb.Connection):
@@ -85,6 +88,10 @@ class DBConnection:
         """Execute SQL or PGQL query and return column names and rows."""
         with conn.cursor() as cur:
             cur.execute(sql)
+            if cur.description is None:
+                # just add for the case then an statement is not with SELECT, but should not be available for the model
+                conn.commit()
+                return [], []
             return [d[0] for d in cur.description], cur.fetchall()
 
     def create_table(self, conn: oracledb.Connection):
@@ -107,4 +114,4 @@ class DBConnection:
                 try:
                     cur.execute(stmt)
                 except Exception as e:
-                    print(f"Skipping error: {e}")
+                    logger.warning(f"Skipping error: {e}")

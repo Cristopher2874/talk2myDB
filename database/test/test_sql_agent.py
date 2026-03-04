@@ -1,9 +1,16 @@
 import asyncio
+import logging
 import re
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from agents import create_nl2sql_agent
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 async def test_sql_queries():
     # Bring test data from the queries file

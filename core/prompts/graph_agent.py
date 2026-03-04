@@ -35,7 +35,13 @@ GRAPH_SCHEMA_DESCRIPTION = textwrap.dedent(
 GRAPH_FEW_SHOT_EXAMPLES = [
     {
         "q": "How many substations are there?",
-        "pgql": "SELECT COUNT(*) FROM graph_table (outage_network MATCH (s IS substation) COLUMNS (s.id))",
+        "pgql": (
+            "SELECT COUNT(*)\n"
+            "FROM graph_table (outage_network\n"
+            "  MATCH (s IS substation)\n"
+            "  COLUMNS (s.id)\n"
+            ");"
+        ),
     },
     {
         "q": "How many circuits originate from a specific substation?",
@@ -45,7 +51,7 @@ GRAPH_FEW_SHOT_EXAMPLES = [
             "  MATCH (s IS substation) -[IS ORIGINATES_FROM]-> (c IS circuit)\n"
             "  WHERE s.id = 1\n"
             "  COLUMNS (c.id)\n"
-            ")"
+            ");"
         ),
     },
     {
@@ -56,11 +62,11 @@ GRAPH_FEW_SHOT_EXAMPLES = [
             "  outage_network\n"
             "  MATCH (s IS substation) -[IS ORIGINATES_FROM]-> (c IS circuit)\n"
             "  COLUMNS (\n"
-            "    s.name AS substation_name,\n"
+            "    s.name         AS substation_name,\n"
             "    c.circuit_name AS circuit_name,\n"
-            "    c.voltage_kv AS voltage_kv\n"
+            "    c.voltage_kv   AS voltage_kv\n"
             "  )\n"
-            ")"
+            ");"
         ),
     },
     {
@@ -70,7 +76,7 @@ GRAPH_FEW_SHOT_EXAMPLES = [
             "FROM graph_table (outage_network\n"
             "  MATCH (s IS substation) -[IS ORIGINATES_FROM]-> (c IS circuit) -[IS LOCATED_ON]-> (a IS asset)\n"
             "  COLUMNS (a.asset_id AS asset_id, a.asset_type AS asset_type, c.circuit_name AS circuit_name, s.name AS substation_name)\n"
-            ")"
+            ");"
         ),
     },
     {
@@ -82,7 +88,88 @@ GRAPH_FEW_SHOT_EXAMPLES = [
             "  COLUMNS (s.name AS substation_name, cust.id AS customer_id)\n"
             ")\n"
             "GROUP BY substation_name\n"
-            "ORDER BY customer_count DESC"
+            "ORDER BY customer_count DESC;"
+        ),
+    },
+    {
+        "q": "Outages and the circuits they affect",
+        "pgql": (
+            "SELECT incident_code, cause_category, circuit_name, substation_name\n"
+            "FROM graph_table (outage_network\n"
+            "  MATCH (o IS outage) -[IS AFFECTED]-> (c IS circuit) <-[IS ORIGINATES_FROM]- (s IS substation)\n"
+            "  COLUMNS (o.incident_code AS incident_code, o.cause_category AS cause_category, c.circuit_name AS circuit_name, s.name AS substation_name)\n"
+            ");"
+        ),
+    },
+    {
+        "q": "Assets that caused outages",
+        "pgql": (
+            "SELECT asset_id, asset_type, incident_code, cause_category, customers_affected\n"
+            "FROM graph_table (outage_network\n"
+            "  MATCH (o IS outage) -[IS CAUSED_BY]-> (a IS asset)\n"
+            "  COLUMNS (a.asset_id AS asset_id, a.asset_type AS asset_type, o.incident_code AS incident_code, o.cause_category AS cause_category, o.customers_affected AS customers_affected)\n"
+            ");"
+        ),
+    },
+    {
+        "q": "Work orders that address outages",
+        "pgql": (
+            "SELECT work_order_id, work_type, status, incident_code, cause_category\n"
+            "FROM graph_table (outage_network\n"
+            "  MATCH (w IS work_order) -[IS ADDRESSES]-> (o IS outage)\n"
+            "  COLUMNS (w.id AS work_order_id, w.work_type AS work_type, w.status AS status, o.incident_code AS incident_code, o.cause_category AS cause_category)\n"
+            ");"
+        ),
+    },
+    {
+        "q": "Assets serviced by work orders",
+        "pgql": (
+            "SELECT asset_id, asset_type, work_type, priority, status\n"
+            "FROM graph_table (outage_network\n"
+            "  MATCH (w IS work_order) -[IS SERVICES]-> (a IS asset)\n"
+            "  COLUMNS (a.asset_id AS asset_id, a.asset_type AS asset_type, w.work_type AS work_type, w.priority AS priority, w.status AS status)\n"
+            ");"
+        ),
+    },
+    {
+        "q": "Documents referencing outages",
+        "pgql": (
+            "SELECT title, document_type, incident_code, cause_category\n"
+            "FROM graph_table (outage_network\n"
+            "  MATCH (d IS document) -[IS REFERENCES_OUTAGE]-> (o IS outage)\n"
+            "  COLUMNS (d.title AS title, d.document_type AS document_type, o.incident_code AS incident_code, o.cause_category AS cause_category)\n"
+            ");"
+        ),
+    },
+    {
+        "q": "Customers affected by outages caused by assets on their circuit",
+        "pgql": (
+            "SELECT DISTINCT customer_name, customer_type, incident_code, asset_id, asset_type\n"
+            "FROM graph_table (outage_network\n"
+            "  MATCH (cust IS customer) <-[IS SERVED_BY]- (c IS circuit) <-[IS AFFECTED]- (o IS outage) -[IS CAUSED_BY]-> (a IS asset)\n"
+            "  COLUMNS (cust.name AS customer_name, cust.customer_type AS customer_type, o.incident_code AS incident_code, a.asset_id AS asset_id, a.asset_type AS asset_type)\n"
+            ");"
+        ),
+    },
+    {
+        "q": "Find all paths from substations to customers through circuits",
+        "pgql": (
+            "SELECT substation_name, circuit_name, customer_name, customer_type\n"
+            "FROM graph_table (outage_network\n"
+            "  MATCH (s IS substation) -[IS ORIGINATES_FROM]-> (c IS circuit) -[IS SERVED_BY]-> (cust IS customer)\n"
+            "  COLUMNS (s.name AS substation_name, c.circuit_name AS circuit_name, cust.name AS customer_name, cust.customer_type AS customer_type)\n"
+            ")\n"
+            "ORDER BY substation_name, circuit_name;"
+        ),
+    },
+    {
+        "q": "Work orders servicing assets that caused outages",
+        "pgql": (
+            "SELECT work_order_id, work_type, asset_id, asset_type, incident_code, cause_category\n"
+            "FROM graph_table (outage_network\n"
+            "  MATCH (w IS work_order) -[IS SERVICES]-> (a IS asset) <-[IS CAUSED_BY]- (o IS outage)\n"
+            "  COLUMNS (w.id AS work_order_id, w.work_type AS work_type, a.asset_id AS asset_id, a.asset_type AS asset_type, o.incident_code AS incident_code, o.cause_category AS cause_category)\n"
+            ");"
         ),
     },
 ]

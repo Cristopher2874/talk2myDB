@@ -1,10 +1,17 @@
 import asyncio
+import logging
 import re
 import sys
 import os
 # Python packjage management seems odd, maybeother solutiuon?
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from agents import create_nl2graph_agent
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 async def test_graph_queries():
     with open('database/test/graph_queries.sql', 'r') as f:

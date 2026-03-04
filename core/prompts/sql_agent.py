@@ -73,4 +73,89 @@ SQL_FEW_SHOT_EXAMPLES = [
             "ORDER BY asset_count DESC;"
         ),
     },
+    {
+        "q": "Outages by cause category",
+        "sql": (
+            "SELECT cause_category, COUNT(*) AS outage_count, AVG(duration_minutes) AS avg_duration\n"
+            "FROM outages\n"
+            "GROUP BY cause_category\n"
+            "ORDER BY outage_count DESC;"
+        ),
+    },
+    {
+        "q": "Work orders by status and priority",
+        "sql": (
+            "SELECT status, priority, COUNT(*) AS order_count, SUM(labor_hours) AS total_hours\n"
+            "FROM work_orders\n"
+            "GROUP BY status, priority\n"
+            "ORDER BY status, priority;"
+        ),
+    },
+    {
+        "q": "Find all customers affected by outages in the last 30 days",
+        "sql": (
+            "SELECT DISTINCT c.name, c.customer_type, o.incident_code, o.start_time, o.cause_category\n"
+            "FROM customers c\n"
+            "JOIN circuits cir ON c.circuit_id = cir.id\n"
+            "JOIN outages o ON o.circuit_id = cir.id\n"
+            "WHERE o.start_time >= SYSDATE - 30\n"
+            "ORDER BY o.start_time DESC;"
+        ),
+    },
+    {
+        "q": "Assets requiring maintenance in the next 30 days",
+        "sql": (
+            "SELECT a.asset_id, a.asset_type, a.status, a.next_maintenance_due, s.name AS substation_name\n"
+            "FROM assets a\n"
+            "JOIN substations s ON a.substation_id = s.id\n"
+            "WHERE a.next_maintenance_due <= SYSDATE + 30\n"
+            "ORDER BY a.next_maintenance_due;"
+        ),
+    },
+    {
+        "q": "Outages with work orders, showing costs and resolution times",
+        "sql": (
+            "SELECT o.incident_code, o.cause_category, o.customers_affected,\n"
+            "       w.work_type, w.priority, w.labor_hours, w.material_cost,\n"
+            "       (o.end_time - o.start_time) * 24 AS resolution_hours\n"
+            "FROM outages o\n"
+            "LEFT JOIN work_orders w ON o.id = w.outage_id\n"
+            "WHERE o.end_time IS NOT NULL\n"
+            "ORDER BY o.start_time DESC;"
+        ),
+    },
+    {
+        "q": "Circuit reliability analysis with outage frequency",
+        "sql": (
+            "SELECT cir.circuit_name, cir.customers_served, cir.reliability_grade,\n"
+            "       COUNT(o.id) AS outage_count,\n"
+            "       AVG(o.duration_minutes) AS avg_outage_duration,\n"
+            "       SUM(o.customers_affected) AS total_customers_affected\n"
+            "FROM circuits cir\n"
+            "LEFT JOIN outages o ON cir.id = o.circuit_id\n"
+            "GROUP BY cir.id, cir.circuit_name, cir.customers_served, cir.reliability_grade\n"
+            "ORDER BY outage_count DESC, cir.customers_served DESC;"
+        ),
+    },
+    {
+        "q": "Customer complaints linked to outages",
+        "sql": (
+            "SELECT cc.category AS complaint_category, cc.status AS complaint_status,\n"
+            "       o.incident_code, o.cause_category, c.name AS customer_name, c.customer_type\n"
+            "FROM customer_complaints cc\n"
+            "JOIN customers c ON cc.customer_id = c.id\n"
+            "LEFT JOIN outages o ON cc.outage_id = o.id\n"
+            "ORDER BY cc.complaint_time DESC;"
+        ),
+    },
+    {
+        "q": "Asset health trends (latest reading per asset)",
+        "sql": (
+            "SELECT a.asset_id, a.asset_type, h.condition_score, h.temperature_c, h.load_pct, h.reading_time\n"
+            "FROM assets a\n"
+            "JOIN asset_health_history h ON a.id = h.asset_id\n"
+            "WHERE h.reading_time = (SELECT MAX(reading_time) FROM asset_health_history WHERE asset_id = a.id)\n"
+            "ORDER BY h.condition_score DESC;"
+        ),
+    },
 ]

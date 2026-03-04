@@ -13,16 +13,17 @@ class BaseAgent(ABC):
         self.agent_name = "backend_orchestrator"
         self.system_prompt = ''
         self.tools = []
-        self.agent = self._build_agent()
+        # each subclass must build the agent to overwrite
+        self.agent = None
 
-    def _build_agent(self):
+    def build_agent(self):
         """Build the agent"""
         return create_agent(
             model=self._client,
             tools=self.tools,
             system_prompt=self.system_prompt,
             name=self.agent_name,
-            # checkpointer=InMemorySaver()
+            checkpointer=InMemorySaver()
         )
     
     #TODO: add A2A in case is required
