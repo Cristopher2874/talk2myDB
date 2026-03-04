@@ -3,7 +3,7 @@ import re
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-from agents.nl2sql_agent import create_nl2sql_agent
+from agents import create_nl2sql_agent
 
 async def test_sql_queries():
     # Bring test data from the queries file

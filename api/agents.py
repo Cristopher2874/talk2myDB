@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from agents.nl2sql_agent import create_nl2sql_agent
-from agents.nl2graph_agent import create_nl2graph_agent
+from agents import create_nl2graph_agent
+from agents import create_nl2sql_agent
 
 router = APIRouter()
 

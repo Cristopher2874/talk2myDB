@@ -4,7 +4,7 @@ import sys
 import os
 # Python packjage management seems odd, maybeother solutiuon?
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-from agents.nl2graph_agent import create_nl2graph_agent
+from agents import create_nl2graph_agent
 
 async def test_graph_queries():
     with open('database/test/graph_queries.sql', 'r') as f:

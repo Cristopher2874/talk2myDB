@@ -1,5 +1,6 @@
 from abc import ABC
 from langchain.agents import create_agent
+from langgraph.checkpoint.memory import InMemorySaver
 
 from core.gen_ai_provider import GenAIProvider
 
@@ -20,7 +21,8 @@ class BaseAgent(ABC):
             model=self._client,
             tools=self.tools,
             system_prompt=self.system_prompt,
-            name=self.agent_name
+            name=self.agent_name,
+            # checkpointer=InMemorySaver()
         )
     
     #TODO: add A2A in case is required

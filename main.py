@@ -1,11 +1,11 @@
 from fastapi import FastAPI
-from api.manual import router as manual_router
-from api.agents import router as agents_router
+from api import manual_router
+from api import agent_router
 
 app = FastAPI(title="Talk2MyDB", description="NL to SQL or graphDB")
 
 app.include_router(manual_router, prefix="/api", tags=["Manual Queries"])
-app.include_router(agents_router, prefix="/api", tags=["Agents"])
+app.include_router(agent_router, prefix="/api", tags=["Agents"])
 
 @app.get("/")
 async def root():

@@ -1,55 +1,8 @@
-import textwrap
 from langchain_core.messages import HumanMessage
 
-from core.base_agent import BaseAgent
-from database.sql.connections import DBConnection
-
-
-GRAPH_SCHEMA_DESCRIPTION = textwrap.dedent(
-    """
-    You are an expert Oracle SQL generator for property graphs. The user asks questions about
-    the BANK_GRAPH schema, which contains bank accounts and transfers:
-
-    Nodes (Vertices):
-      • BANK_ACCOUNTS(id, name, balance)
-
-    Relationships (Edges):
-      • BANK_TRANSFERS(src_acct_id, dst_acct_id, amount)
-
-    The graph represents bank transfers between accounts, where each transfer has a source account, destination account, and amount.
-
-    Use graph_table function with PGQL MATCH syntax for queries. Always return valid SQL only. Your output will be directly fed to the Oracle database.
-    Do not include backquotes.
-    """
-)
-
-GRAPH_FEW_SHOT_EXAMPLES = [
-    {
-        "q": "How many accounts are there?",
-        "pgql": "SELECT COUNT(*) FROM graph_table (BANK_GRAPH MATCH (a) COLUMNS (a.id))",
-    },
-    {
-        "q": "What is the total amount transferred?",
-        "pgql": "SELECT SUM(amount) FROM graph_table (BANK_GRAPH MATCH (src) -[e IS BANK_TRANSFERS]-> (dst) COLUMNS (e.amount AS amount))",
-    },
-    {
-        "q": "Top 5 accounts by number of incoming transfers",
-        "pgql": (
-            "SELECT id, name, COUNT(*) AS incoming_transfers\n"
-            "FROM graph_table (BANK_GRAPH MATCH (src) -[e IS BANK_TRANSFERS]-> (a) COLUMNS (a.id AS id, a.name AS name))\n"
-            "GROUP BY id, name\n"
-            "ORDER BY incoming_transfers DESC FETCH FIRST 5 ROWS ONLY"
-        ),
-    },
-    {
-        "q": "Which accounts received transfers from account 387 in 1 to 3 hops?",
-        "pgql": (
-            "SELECT DISTINCT id, name\n"
-            "FROM graph_table (BANK_GRAPH MATCH (src) -[IS BANK_TRANSFERS]->{1,3} (a) WHERE src.id = 387 COLUMNS (a.id AS id, a.name AS name))"
-        ),
-    },
-]
-
+from database import DBConnection
+from core import BaseAgent
+from core import GRAPH_SCHEMA_DESCRIPTION, GRAPH_FEW_SHOT_EXAMPLES
 
 class NL2GraphAgent(BaseAgent):
     """Agent for natural language to PGQL translation and execution."""
