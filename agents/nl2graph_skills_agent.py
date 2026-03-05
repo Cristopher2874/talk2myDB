@@ -7,16 +7,16 @@ from langgraph.checkpoint.memory import InMemorySaver
 from database import DBConnection
 from core import BaseAgent
 from core import GRAPH_SCHEMA_DESCRIPTION_SKILLS
-from core.skills_loader import SkillMiddleware
+from core import SkillMiddleware
 
 logger = logging.getLogger(__name__)
 
-class NL2GraphAgent(BaseAgent):
+class NL2GraphAgentSkills(BaseAgent):
     """Agent for natural language to PGQL translation and execution."""
 
     def __init__(self):
         super().__init__()
-        self.agent_name = "nl2graph_agent"
+        self.agent_name = "nl2graph_agent_skills"
         self.system_prompt = GRAPH_SCHEMA_DESCRIPTION_SKILLS
         self.tools.extend(SkillMiddleware.tools)
         self.agent = self.build_agent()
@@ -33,7 +33,7 @@ class NL2GraphAgent(BaseAgent):
             checkpointer=InMemorySaver()
         )
 
-    async def call_nl2graphDB_agent(self, input: dict) -> dict:
+    async def call_nl2graphDB_agent_skills(self, input: dict) -> dict:
         """Process the input question by generating PGQL and executing it."""
         question = input.get("input", "")
         original_question = question
@@ -85,6 +85,6 @@ class NL2GraphAgent(BaseAgent):
         return {"output": f"Error executing NL2Graph after {max_attempts} attempts: {str(last_error)}"}
 
 
-def create_nl2graph_agent():
+def create_nl2graph_agent_skills():
     """Instantiate to call"""
-    return NL2GraphAgent()
+    return NL2GraphAgentSkills()

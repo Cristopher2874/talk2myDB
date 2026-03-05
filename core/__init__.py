@@ -6,6 +6,7 @@ from .prompts.graph_skills_agent import GRAPH_SCHEMA_DESCRIPTION_SKILLS
 from .gen_ai_provider import GenAIProvider
 from .base_agent import BaseAgent
 from .struct import Skill
+from .skills_loader import SkillMiddleware
 
 __all__ = [
     'SQL_SCHEMA_DESCRIPTION',
@@ -15,5 +16,6 @@ __all__ = [
     'GRAPH_SCHEMA_DESCRIPTION_SKILLS',
     'GenAIProvider',
     'BaseAgent',
-    'Skill'
+    'Skill',
+    'SkillMiddleware'
 ]

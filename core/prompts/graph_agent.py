@@ -37,78 +37,79 @@ GRAPH_SCHEMA_DESCRIPTION = textwrap.dedent(
 
 GRAPH_FEW_SHOT_EXAMPLES = [
     {
-        "q": "How many people are in the graph?",
+        "q": "How many cities are in the transportation graph?",
         "pgql": (
             "SELECT COUNT(*)\n"
             "FROM graph_table (graph_name\n"
-            "  MATCH (p IS Person)\n"
-            "  COLUMNS (p.id)\n"
+            "  MATCH (c IS City)\n"
+            "  COLUMNS (c.id)\n"
             ");"
         ),
     },
     {
-        "q": "Find all employees who work for a specific company",
+        "q": "Find all routes departing from a specific city",
         "pgql": (
-            "SELECT employee_name, company_name\n"
+            "SELECT route_name, city_name\n"
             "FROM graph_table (graph_name\n"
-            "  MATCH (e IS Employee) -[IS WORKS_FOR]-> (c IS Company)\n"
-            "  WHERE c.name = 'TechCorp'\n"
-            "  COLUMNS (e.name AS employee_name, c.name AS company_name)\n"
+            "  MATCH (c IS City) -[IS DEPARTS_FROM]-> (r IS Route)\n"
+            "  WHERE c.name = 'New York'\n"
+            "  COLUMNS (r.name AS route_name, c.name AS city_name)\n"
             ");"
         ),
     },
     {
-        "q": "Find customers who bought specific products",
+        "q": "Find vehicles operating on routes from specific cities",
         "pgql": (
-            "SELECT customer_name, product_name, order_date\n"
+            "SELECT vehicle_type, route_name, city_name\n"
             "FROM graph_table (graph_name\n"
-            "  MATCH (cust IS Customer) -[IS PLACED]-> (o IS Order) -[IS CONTAINS]-> (p IS Product)\n"
-            "  WHERE p.name = 'Laptop'\n"
-            "  COLUMNS (cust.name AS customer_name, p.name AS product_name, o.date AS order_date)\n"
+            "  MATCH (c IS City) -[IS DEPARTS_FROM]-> (r IS Route) -[IS OPERATES_ON]-> (v IS Vehicle)\n"
+            "  WHERE c.name = 'Los Angeles'\n"
+            "  COLUMNS (v.type AS vehicle_type, r.name AS route_name, c.name AS city_name)\n"
             ");"
         ),
     },
     {
-        "q": "Count orders per customer",
+        "q": "Count routes originating from each city",
         "pgql": (
-            "SELECT customer_name, COUNT(DISTINCT order_id) AS order_count\n"
+            "SELECT city_name, COUNT(DISTINCT route_id) AS route_count\n"
             "FROM graph_table (graph_name\n"
-            "  MATCH (c IS Customer) -[IS PLACED]-> (o IS Order)\n"
-            "  COLUMNS (c.name AS customer_name, o.id AS order_id)\n"
+            "  MATCH (c IS City) -[IS DEPARTS_FROM]-> (r IS Route)\n"
+            "  COLUMNS (c.name AS city_name, r.id AS route_id)\n"
             ")\n"
-            "GROUP BY customer_name\n"
-            "ORDER BY order_count DESC;"
+            "GROUP BY city_name\n"
+            "ORDER BY route_count DESC;"
         ),
     },
     {
-        "q": "Find users who follow each other (mutual following)",
+        "q": "Find cities connected through shared routes",
         "pgql": (
-            "SELECT u1_name, u2_name\n"
+            "SELECT DISTINCT city1, city2, shared_route\n"
             "FROM graph_table (graph_name\n"
-            "  MATCH (u1 IS User) -[IS FOLLOWS]-> (u2 IS User) -[IS FOLLOWS]-> (u1)\n"
-            "  COLUMNS (u1.name AS u1_name, u2.name AS u2_name)\n"
-            ");"
-        ),
-    },
-    {
-        "q": "Find customers connected through shared orders",
-        "pgql": (
-            "SELECT DISTINCT customer1, customer2, shared_order\n"
-            "FROM graph_table (graph_name\n"
-            "  MATCH (c1 IS Customer) -[IS PLACED]-> (o IS Order) <-[IS PLACED]- (c2 IS Customer)\n"
+            "  MATCH (c1 IS City) -[IS DEPARTS_FROM]-> (r IS Route) <-[IS ARRIVES_AT]- (c2 IS City)\n"
             "  WHERE c1.id != c2.id\n"
-            "  COLUMNS (c1.name AS customer1, c2.name AS customer2, o.id AS shared_order)\n"
+            "  COLUMNS (c1.name AS city1, c2.name AS city2, r.name AS shared_route)\n"
             ");"
         ),
     },
     {
-        "q": "Find reviews for products from their manufacturers",
+        "q": "Find authors who collaborated on the same paper",
         "pgql": (
-            "SELECT product_name, manufacturer_name, review_text, rating\n"
+            "SELECT DISTINCT author1, author2, paper_title\n"
             "FROM graph_table (graph_name\n"
-            "  MATCH (p IS Product) <-[IS MANUFACTURES]- (m IS Manufacturer),\n"
-            "        (p) <-[IS REVIEWS]- (r IS Review)\n"
-            "  COLUMNS (p.name AS product_name, m.name AS manufacturer_name, r.text AS review_text, r.rating AS rating)\n"
+            "  MATCH (a1 IS Author) -[IS AUTHORED]-> (p IS Paper) <-[IS AUTHORED]- (a2 IS Author)\n"
+            "  WHERE a1.id != a2.id\n"
+            "  COLUMNS (a1.name AS author1, a2.name AS author2, p.title AS paper_title)\n"
+            ");"
+        ),
+    },
+    {
+        "q": "Find papers presented at conferences by their authors",
+        "pgql": (
+            "SELECT paper_title, conference_name, author_name\n"
+            "FROM graph_table (graph_name\n"
+            "  MATCH (a IS Author) -[IS AUTHORED]-> (p IS Paper),\n"
+            "        (p) -[IS PRESENTED_AT]-> (conf IS Conference)\n"
+            "  COLUMNS (p.title AS paper_title, conf.name AS conference_name, a.name AS author_name)\n"
             ");"
         ),
     },

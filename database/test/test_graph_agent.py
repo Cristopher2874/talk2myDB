@@ -6,6 +6,7 @@ import os
 # Python packjage management seems odd, maybeother solutiuon?
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from agents import create_nl2graph_agent
+from agents import create_nl2graph_agent_skills
 
 logging.basicConfig(
     level=logging.INFO,
@@ -30,12 +31,15 @@ async def test_graph_queries():
 
     # test each graphDB exaples
     agent = create_nl2graph_agent()
+    skills_agent = create_nl2graph_agent_skills()
     for question, expected_query in questions:
         print(f"Question: {question}")
         print(f"Expected Query: {expected_query}")
         try:
             result = await agent.call_nl2graphDB_agent({"input": question})
-            print(f"Agent Result: {result['output'][:500]}")
+            print(f"Agent Result: {result['output'][:200]}")
+            result = await skills_agent.call_nl2graphDB_agent_skills({"input": question})
+            print(f"Skills Result: {result['output'][:200]}")
         except Exception as e:
             print(f"Error: {e}")
         print("-" * 50)

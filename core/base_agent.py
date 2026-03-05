@@ -2,7 +2,7 @@ from abc import ABC
 from langchain.agents import create_agent
 from langgraph.checkpoint.memory import InMemorySaver
 
-from core.gen_ai_provider import GenAIProvider
+from core import GenAIProvider
 
 class BaseAgent(ABC):
     """template for agents, may require rebuild"""
