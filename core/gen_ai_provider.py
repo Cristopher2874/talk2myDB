@@ -17,7 +17,7 @@ class GenAIProvider:
     def __init__(self):
         pass
 
-    def build_oci_client(self, model_id:str="xai.grok-4-fast-non-reasoning", model_kwargs:dict[str,Any] = {}):
+    def build_oci_client(self, model_id:str="xai.grok-4-fast-reasoning", model_kwargs:dict[str,Any] = {}):
         client = ChatOCIGenAI(
             model_id=model_id,
             service_endpoint=os.getenv("SERVICE_ENDPOINT"),

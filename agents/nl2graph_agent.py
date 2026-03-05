@@ -1,6 +1,7 @@
 import logging
 
 from langchain_core.messages import HumanMessage
+from langchain_core.runnables import RunnableConfig
 
 from database import DBConnection
 from core import BaseAgent
@@ -17,7 +18,7 @@ class NL2GraphAgent(BaseAgent):
         self.system_prompt = f"{GRAPH_SCHEMA_DESCRIPTION}\n\n" + "\n\n".join(
             f"Q: {ex['q']}\nPGQL:\n{ex['pgql']}" for ex in GRAPH_FEW_SHOT_EXAMPLES
         )
-        self.agent = self._build_agent()
+        self.agent = self.build_agent()
 
     async def call_nl2graphDB_agent(self, input: dict) -> dict:
         """Process the input question by generating PGQL and executing it."""
@@ -35,9 +36,12 @@ class NL2GraphAgent(BaseAgent):
                 messages = [HumanMessage(content=question)]
 
                 agent_input = {'messages': messages}
+                config:RunnableConfig = {"configurable": {"thread_id": "1234"}}
 
-                response = await self.agent.ainvoke(agent_input)
+                response = await self.agent.ainvoke(agent_input, config)
                 generated_pgql = response['messages'][-1].content
+                
+                #TODO: Validate the generated query that the agent generated with a judge
 
                 logger.info(f"GENERATED PGQL (attempt {attempt + 1}): {generated_pgql}")
 

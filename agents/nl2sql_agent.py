@@ -1,6 +1,7 @@
 import logging
 
 from langchain_core.messages import HumanMessage
+from langchain_core.runnables import RunnableConfig
 
 from database import DBConnection
 from core import BaseAgent
@@ -35,8 +36,9 @@ class NL2SQLAgent(BaseAgent):
                 messages = [HumanMessage(content=question)]
 
                 agent_input = {'messages': messages}
+                config:RunnableConfig = {"configurable": {"thread_id": "1234"}}
 
-                response = await self.agent.ainvoke(agent_input)
+                response = await self.agent.ainvoke(agent_input, config)
                 generated_sql = response['messages'][-1].content
 
                 logger.info(f"GENERATED SQL (attempt {attempt + 1}): {generated_sql}")

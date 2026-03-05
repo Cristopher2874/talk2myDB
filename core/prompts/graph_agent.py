@@ -2,7 +2,7 @@ import textwrap
 
 GRAPH_SCHEMA_DESCRIPTION = textwrap.dedent(
     """
-    You are an expert Oracle SQL generator for property graphs. The user asks questions about
+    You are an expert Oracle SQL generator for property graphs using PGQL. The user asks questions about
     the outage_network property graph, which represents the electrical grid infrastructure and outages:
 
     Vertices (Nodes):
@@ -29,146 +29,86 @@ GRAPH_SCHEMA_DESCRIPTION = textwrap.dedent(
 
     Use graph_table function with PGQL MATCH syntax for queries on the outage_network graph. Always return valid SQL only. Your output will be directly fed to the Oracle database.
     Do not include backquotes.
+
+    The examples below are for reference only - they demonstrate general PGQL patterns.
+    The actual database schema and data is provided above on DB description.
     """
 )
 
 GRAPH_FEW_SHOT_EXAMPLES = [
     {
-        "q": "How many substations are there?",
+        "q": "How many people are in the graph?",
         "pgql": (
             "SELECT COUNT(*)\n"
-            "FROM graph_table (outage_network\n"
-            "  MATCH (s IS substation)\n"
-            "  COLUMNS (s.id)\n"
+            "FROM graph_table (graph_name\n"
+            "  MATCH (p IS Person)\n"
+            "  COLUMNS (p.id)\n"
             ");"
         ),
     },
     {
-        "q": "How many circuits originate from a specific substation?",
+        "q": "Find all employees who work for a specific company",
         "pgql": (
-            "SELECT COUNT(*)\n"
-            "FROM graph_table (outage_network\n"
-            "  MATCH (s IS substation) -[IS ORIGINATES_FROM]-> (c IS circuit)\n"
-            "  WHERE s.id = 1\n"
-            "  COLUMNS (c.id)\n"
+            "SELECT employee_name, company_name\n"
+            "FROM graph_table (graph_name\n"
+            "  MATCH (e IS Employee) -[IS WORKS_FOR]-> (c IS Company)\n"
+            "  WHERE c.name = 'TechCorp'\n"
+            "  COLUMNS (e.name AS employee_name, c.name AS company_name)\n"
             ");"
         ),
     },
     {
-        "q": "List all circuits and their originating substations",
+        "q": "Find customers who bought specific products",
         "pgql": (
-            "SELECT substation_name, circuit_name, voltage_kv\n"
-            "FROM GRAPH_TABLE (\n"
-            "  outage_network\n"
-            "  MATCH (s IS substation) -[IS ORIGINATES_FROM]-> (c IS circuit)\n"
-            "  COLUMNS (\n"
-            "    s.name         AS substation_name,\n"
-            "    c.circuit_name AS circuit_name,\n"
-            "    c.voltage_kv   AS voltage_kv\n"
-            "  )\n"
+            "SELECT customer_name, product_name, order_date\n"
+            "FROM graph_table (graph_name\n"
+            "  MATCH (cust IS Customer) -[IS PLACED]-> (o IS Order) -[IS CONTAINS]-> (p IS Product)\n"
+            "  WHERE p.name = 'Laptop'\n"
+            "  COLUMNS (cust.name AS customer_name, p.name AS product_name, o.date AS order_date)\n"
             ");"
         ),
     },
     {
-        "q": "Assets located on circuits from a specific substation",
+        "q": "Count orders per customer",
         "pgql": (
-            "SELECT asset_id, asset_type, circuit_name, substation_name\n"
-            "FROM graph_table (outage_network\n"
-            "  MATCH (s IS substation) -[IS ORIGINATES_FROM]-> (c IS circuit) -[IS LOCATED_ON]-> (a IS asset)\n"
-            "  COLUMNS (a.asset_id AS asset_id, a.asset_type AS asset_type, c.circuit_name AS circuit_name, s.name AS substation_name)\n"
-            ");"
-        ),
-    },
-    {
-        "q": "Customers served by circuits from each substation",
-        "pgql": (
-            "SELECT substation_name, COUNT(DISTINCT customer_id) AS customer_count\n"
-            "FROM graph_table (outage_network\n"
-            "  MATCH (s IS substation) -[IS ORIGINATES_FROM]-> (c IS circuit) -[IS SERVED_BY]-> (cust IS customer)\n"
-            "  COLUMNS (s.name AS substation_name, cust.id AS customer_id)\n"
+            "SELECT customer_name, COUNT(DISTINCT order_id) AS order_count\n"
+            "FROM graph_table (graph_name\n"
+            "  MATCH (c IS Customer) -[IS PLACED]-> (o IS Order)\n"
+            "  COLUMNS (c.name AS customer_name, o.id AS order_id)\n"
             ")\n"
-            "GROUP BY substation_name\n"
-            "ORDER BY customer_count DESC;"
+            "GROUP BY customer_name\n"
+            "ORDER BY order_count DESC;"
         ),
     },
     {
-        "q": "Outages and the circuits they affect",
+        "q": "Find users who follow each other (mutual following)",
         "pgql": (
-            "SELECT incident_code, cause_category, circuit_name, substation_name\n"
-            "FROM graph_table (outage_network\n"
-            "  MATCH (o IS outage) -[IS AFFECTED]-> (c IS circuit) <-[IS ORIGINATES_FROM]- (s IS substation)\n"
-            "  COLUMNS (o.incident_code AS incident_code, o.cause_category AS cause_category, c.circuit_name AS circuit_name, s.name AS substation_name)\n"
+            "SELECT u1_name, u2_name\n"
+            "FROM graph_table (graph_name\n"
+            "  MATCH (u1 IS User) -[IS FOLLOWS]-> (u2 IS User) -[IS FOLLOWS]-> (u1)\n"
+            "  COLUMNS (u1.name AS u1_name, u2.name AS u2_name)\n"
             ");"
         ),
     },
     {
-        "q": "Assets that caused outages",
+        "q": "Find customers connected through shared orders",
         "pgql": (
-            "SELECT asset_id, asset_type, incident_code, cause_category, customers_affected\n"
-            "FROM graph_table (outage_network\n"
-            "  MATCH (o IS outage) -[IS CAUSED_BY]-> (a IS asset)\n"
-            "  COLUMNS (a.asset_id AS asset_id, a.asset_type AS asset_type, o.incident_code AS incident_code, o.cause_category AS cause_category, o.customers_affected AS customers_affected)\n"
+            "SELECT DISTINCT customer1, customer2, shared_order\n"
+            "FROM graph_table (graph_name\n"
+            "  MATCH (c1 IS Customer) -[IS PLACED]-> (o IS Order) <-[IS PLACED]- (c2 IS Customer)\n"
+            "  WHERE c1.id != c2.id\n"
+            "  COLUMNS (c1.name AS customer1, c2.name AS customer2, o.id AS shared_order)\n"
             ");"
         ),
     },
     {
-        "q": "Work orders that address outages",
+        "q": "Find reviews for products from their manufacturers",
         "pgql": (
-            "SELECT work_order_id, work_type, status, incident_code, cause_category\n"
-            "FROM graph_table (outage_network\n"
-            "  MATCH (w IS work_order) -[IS ADDRESSES]-> (o IS outage)\n"
-            "  COLUMNS (w.id AS work_order_id, w.work_type AS work_type, w.status AS status, o.incident_code AS incident_code, o.cause_category AS cause_category)\n"
-            ");"
-        ),
-    },
-    {
-        "q": "Assets serviced by work orders",
-        "pgql": (
-            "SELECT asset_id, asset_type, work_type, priority, status\n"
-            "FROM graph_table (outage_network\n"
-            "  MATCH (w IS work_order) -[IS SERVICES]-> (a IS asset)\n"
-            "  COLUMNS (a.asset_id AS asset_id, a.asset_type AS asset_type, w.work_type AS work_type, w.priority AS priority, w.status AS status)\n"
-            ");"
-        ),
-    },
-    {
-        "q": "Documents referencing outages",
-        "pgql": (
-            "SELECT title, document_type, incident_code, cause_category\n"
-            "FROM graph_table (outage_network\n"
-            "  MATCH (d IS document) -[IS REFERENCES_OUTAGE]-> (o IS outage)\n"
-            "  COLUMNS (d.title AS title, d.document_type AS document_type, o.incident_code AS incident_code, o.cause_category AS cause_category)\n"
-            ");"
-        ),
-    },
-    {
-        "q": "Customers affected by outages caused by assets on their circuit",
-        "pgql": (
-            "SELECT DISTINCT customer_name, customer_type, incident_code, asset_id, asset_type\n"
-            "FROM graph_table (outage_network\n"
-            "  MATCH (cust IS customer) <-[IS SERVED_BY]- (c IS circuit) <-[IS AFFECTED]- (o IS outage) -[IS CAUSED_BY]-> (a IS asset)\n"
-            "  COLUMNS (cust.name AS customer_name, cust.customer_type AS customer_type, o.incident_code AS incident_code, a.asset_id AS asset_id, a.asset_type AS asset_type)\n"
-            ");"
-        ),
-    },
-    {
-        "q": "Find all paths from substations to customers through circuits",
-        "pgql": (
-            "SELECT substation_name, circuit_name, customer_name, customer_type\n"
-            "FROM graph_table (outage_network\n"
-            "  MATCH (s IS substation) -[IS ORIGINATES_FROM]-> (c IS circuit) -[IS SERVED_BY]-> (cust IS customer)\n"
-            "  COLUMNS (s.name AS substation_name, c.circuit_name AS circuit_name, cust.name AS customer_name, cust.customer_type AS customer_type)\n"
-            ")\n"
-            "ORDER BY substation_name, circuit_name;"
-        ),
-    },
-    {
-        "q": "Work orders servicing assets that caused outages",
-        "pgql": (
-            "SELECT work_order_id, work_type, asset_id, asset_type, incident_code, cause_category\n"
-            "FROM graph_table (outage_network\n"
-            "  MATCH (w IS work_order) -[IS SERVICES]-> (a IS asset) <-[IS CAUSED_BY]- (o IS outage)\n"
-            "  COLUMNS (w.id AS work_order_id, w.work_type AS work_type, a.asset_id AS asset_id, a.asset_type AS asset_type, o.incident_code AS incident_code, o.cause_category AS cause_category)\n"
+            "SELECT product_name, manufacturer_name, review_text, rating\n"
+            "FROM graph_table (graph_name\n"
+            "  MATCH (p IS Product) <-[IS MANUFACTURES]- (m IS Manufacturer),\n"
+            "        (p) <-[IS REVIEWS]- (r IS Review)\n"
+            "  COLUMNS (p.name AS product_name, m.name AS manufacturer_name, r.text AS review_text, r.rating AS rating)\n"
             ");"
         ),
     },

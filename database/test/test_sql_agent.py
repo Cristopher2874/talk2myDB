@@ -36,7 +36,7 @@ async def test_sql_queries():
         print(f"Expected Query: {expected_query}")
         try:
             result = await agent.call_nl2sql_agent({"input": question})
-            print(f"Agent Result: {result['output']}")
+            print(f"Agent Result: {result['output'][:500]}")
         except Exception as e:
             print(f"Error: {e}")
         print("-" * 50)

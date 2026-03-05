@@ -33,6 +33,9 @@ SQL_SCHEMA_DESCRIPTION = textwrap.dedent(
       CUSTOMER_COMPLAINTS.outage_id = OUTAGES.id
       ASSET_HEALTH_HISTORY.asset_id = ASSETS.id
 
+    The examples below are for reference only - they demonstrate general SQL patterns.
+    The actual database schema and data is provided above on DB description.
+
     Return valid SQL only. Your output will be directly fed to the oracle database.
     dont include backquotes as they would interfere
     """
@@ -40,122 +43,58 @@ SQL_SCHEMA_DESCRIPTION = textwrap.dedent(
 
 SQL_FEW_SHOT_EXAMPLES = [
     {
-        "q": "How many substations are there?",
-        "sql": "SELECT COUNT(*) AS substation_count FROM substations;",
+        "q": "How many employees are there?",
+        "sql": "SELECT COUNT(*) AS employee_count FROM employees;",
     },
     {
-        "q": "What is the total capacity of all substations?",
-        "sql": "SELECT SUM(capacity_mva) AS total_capacity_mva FROM substations;",
-    },
-    {
-        "q": "List all circuits with their associated substations",
+        "q": "List all employees with their departments",
         "sql": (
-            "SELECT c.circuit_name, s.name AS substation_name, c.voltage_kv, c.customers_served\n"
-            "FROM circuits c\n"
-            "JOIN substations s ON c.substation_id = s.id\n"
-            "ORDER BY s.name, c.circuit_name;"
+            "SELECT e.first_name, e.last_name, d.department_name, e.salary\n"
+            "FROM employees e\n"
+            "JOIN departments d ON e.department_id = d.id\n"
+            "ORDER BY d.department_name, e.last_name;"
         ),
     },
     {
-        "q": "Top 5 circuits by customer count",
+        "q": "Products by category and their average price",
         "sql": (
-            "SELECT circuit_name, customers_served, neighborhood\n"
-            "FROM circuits\n"
-            "ORDER BY customers_served DESC FETCH FIRST 5 ROWS ONLY;"
+            "SELECT category, COUNT(*) AS product_count, AVG(price) AS avg_price\n"
+            "FROM products\n"
+            "GROUP BY category\n"
+            "ORDER BY product_count DESC;"
         ),
     },
     {
-        "q": "Assets by type and their average condition score",
+        "q": "Find all customers who placed orders in the last 30 days",
         "sql": (
-            "SELECT asset_type, COUNT(*) AS asset_count, AVG(condition_score) AS avg_condition\n"
-            "FROM assets\n"
-            "GROUP BY asset_type\n"
-            "ORDER BY asset_count DESC;"
-        ),
-    },
-    {
-        "q": "Outages by cause category",
-        "sql": (
-            "SELECT cause_category, COUNT(*) AS outage_count, AVG(duration_minutes) AS avg_duration\n"
-            "FROM outages\n"
-            "GROUP BY cause_category\n"
-            "ORDER BY outage_count DESC;"
-        ),
-    },
-    {
-        "q": "Work orders by status and priority",
-        "sql": (
-            "SELECT status, priority, COUNT(*) AS order_count, SUM(labor_hours) AS total_hours\n"
-            "FROM work_orders\n"
-            "GROUP BY status, priority\n"
-            "ORDER BY status, priority;"
-        ),
-    },
-    {
-        "q": "Find all customers affected by outages in the last 30 days",
-        "sql": (
-            "SELECT DISTINCT c.name, c.customer_type, o.incident_code, o.start_time, o.cause_category\n"
+            "SELECT DISTINCT c.first_name, c.last_name, o.order_number, o.order_date, o.total_amount\n"
             "FROM customers c\n"
-            "JOIN circuits cir ON c.circuit_id = cir.id\n"
-            "JOIN outages o ON o.circuit_id = cir.id\n"
-            "WHERE o.start_time >= SYSDATE - 30\n"
-            "ORDER BY o.start_time DESC;"
+            "JOIN orders o ON c.id = o.customer_id\n"
+            "WHERE o.order_date >= SYSDATE - 30\n"
+            "ORDER BY o.order_date DESC;"
         ),
     },
     {
-        "q": "Assets requiring maintenance in the next 30 days",
+        "q": "Customer order analysis with frequency and totals",
         "sql": (
-            "SELECT a.asset_id, a.asset_type, a.status, a.next_maintenance_due, s.name AS substation_name\n"
-            "FROM assets a\n"
-            "JOIN substations s ON a.substation_id = s.id\n"
-            "WHERE a.next_maintenance_due <= SYSDATE + 30\n"
-            "ORDER BY a.next_maintenance_due;"
+            "SELECT c.first_name, c.last_name, c.membership_level,\n"
+            "       COUNT(o.id) AS order_count,\n"
+            "       AVG(o.total_amount) AS avg_order_amount,\n"
+            "       SUM(o.total_amount) AS total_spent\n"
+            "FROM customers c\n"
+            "LEFT JOIN orders o ON c.id = o.customer_id\n"
+            "GROUP BY c.id, c.first_name, c.last_name, c.membership_level\n"
+            "ORDER BY total_spent DESC, order_count DESC;"
         ),
     },
     {
-        "q": "Outages with work orders, showing costs and resolution times",
+        "q": "Product sales trends (latest sales data per product)",
         "sql": (
-            "SELECT o.incident_code, o.cause_category, o.customers_affected,\n"
-            "       w.work_type, w.priority, w.labor_hours, w.material_cost,\n"
-            "       (o.end_time - o.start_time) * 24 AS resolution_hours\n"
-            "FROM outages o\n"
-            "LEFT JOIN work_orders w ON o.id = w.outage_id\n"
-            "WHERE o.end_time IS NOT NULL\n"
-            "ORDER BY o.start_time DESC;"
-        ),
-    },
-    {
-        "q": "Circuit reliability analysis with outage frequency",
-        "sql": (
-            "SELECT cir.circuit_name, cir.customers_served, cir.reliability_grade,\n"
-            "       COUNT(o.id) AS outage_count,\n"
-            "       AVG(o.duration_minutes) AS avg_outage_duration,\n"
-            "       SUM(o.customers_affected) AS total_customers_affected\n"
-            "FROM circuits cir\n"
-            "LEFT JOIN outages o ON cir.id = o.circuit_id\n"
-            "GROUP BY cir.id, cir.circuit_name, cir.customers_served, cir.reliability_grade\n"
-            "ORDER BY outage_count DESC, cir.customers_served DESC;"
-        ),
-    },
-    {
-        "q": "Customer complaints linked to outages",
-        "sql": (
-            "SELECT cc.category AS complaint_category, cc.status AS complaint_status,\n"
-            "       o.incident_code, o.cause_category, c.name AS customer_name, c.customer_type\n"
-            "FROM customer_complaints cc\n"
-            "JOIN customers c ON cc.customer_id = c.id\n"
-            "LEFT JOIN outages o ON cc.outage_id = o.id\n"
-            "ORDER BY cc.complaint_time DESC;"
-        ),
-    },
-    {
-        "q": "Asset health trends (latest reading per asset)",
-        "sql": (
-            "SELECT a.asset_id, a.asset_type, h.condition_score, h.temperature_c, h.load_pct, h.reading_time\n"
-            "FROM assets a\n"
-            "JOIN asset_health_history h ON a.id = h.asset_id\n"
-            "WHERE h.reading_time = (SELECT MAX(reading_time) FROM asset_health_history WHERE asset_id = a.id)\n"
-            "ORDER BY h.condition_score DESC;"
+            "SELECT p.product_name, p.category, s.sales_amount, s.units_sold, s.sales_date\n"
+            "FROM products p\n"
+            "JOIN sales_history s ON p.id = s.product_id\n"
+            "WHERE s.sales_date = (SELECT MAX(sales_date) FROM sales_history WHERE product_id = p.id)\n"
+            "ORDER BY s.sales_amount DESC;"
         ),
     },
 ]
